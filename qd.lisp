@@ -79,8 +79,8 @@
             (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
               (loop with rudder = (phase cut) with scale = (abs rudder)
                     for i from 0 for j = (1+ (floor (* i (- 1 (/ scale pi)))))
-                    for a = (if (plusp rudder) i j)
-                    for b = (if (plusp rudder) j i)
+                    for a = (if (plusp rudder) j i)
+                    for b = (if (plusp rudder) i j)
                     ;; do (break)
                     until (let ((offer-a (nth a (car unstunk)))
                                 (offer-b (nth b (cdr unstunk))))
@@ -328,7 +328,7 @@
   (with-slots (input output filter prioritizer epsilon frequency) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
       (with-slots (cut) filter
-        (setf cut (complex (- (realpart cut)) ; now your stanx wafted
+        (setf cut (complex (realpart cut) ; now your stanx wafted
                            (/ (realpart cut)  ; denumerodud propagate
                               (- (/ pi 2) (atan (log ratio)))))))
       (with-slots (next-bids next-asks response) prioritizer
