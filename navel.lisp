@@ -264,7 +264,7 @@ their reserved balances will be modified.")
                     when price sum (/ (scaled-quantity delta) price))
               deltas))))
 
-(defmethod halt :before ((charioteer charioteer))
+(defmethod halt :before ((charioteer charioteer) &optional command &key)
   (dolist (horse (horses charioteer))
     (aand (task-thread (first (slot-reduce horse tasks)))
           (thread-alive-p it)
@@ -389,10 +389,10 @@ their reserved balances will be modified.")
     (&optional (count 5) (url *slack-url*) (charioteer *charioteer*))
   #+sbcl (sb-ext:gc :full t)
   (let ((length (length (horses charioteer)))
-        (control "~&~A has ~D~@[ out of ~2D~] bots:~%```~%~A~%```"))
+        (control "~&~A has ~D~@[ out of ~2D~] bot~P:~%```~%~A~%```"))
     (if (eq count t) (setf count length))
     (let ((report (format nil control (name charioteer) count
-                          (unless (= count length) length)
+                          (unless (= count length) length) count
                           (weakest-providers count charioteer))))
       (if url (slack-webhook url report) report))))
 
@@ -430,9 +430,13 @@ their reserved balances will be modified.")
                               (*slack-pnl-url* ,*slack-pnl-url*)))
     ;; Although the following code is hideous, it serves as an
     ;; initial sketch for how to build a cron-like scheduler.
-    (loop for minute = (timestamp-minute (now))
-          for activity? = (zerop (mod minute activity))
-          for staleness? = (zerop (mod minute staleness))
+    (unless (zerop (+ (mod 60 activity) (mod 60 staleness)))
+      (warn "entering unexplored territory"))
+    (loop for hour = (timestamp-hour (now))
+	  for minute = (timestamp-minute (now))
+	  for compound = (+ (* 60 hour) minute)
+          for activity? = (zerop (mod compound activity))
+          for staleness? = (zerop (mod compound staleness))
           do (when activity? (report-net-activity))
              (when staleness? (report-weakest-providers (or count t)))
              (when (or activity? staleness?) (sleep 30))
@@ -450,6 +454,13 @@ their reserved balances will be modified.")
 ;;         (set-difference (horses *charioteer*)
 ;;                         *retirement*)))
 
+;;; how many failures does this one take?
+(defun fleet-stealth (&optional (path 'identity))
+  (let ((predicates '(equalp equal eq)))
+    (mapcar 'apply predicates
+            (make-list (length predicates) :initial-element
+                       (mapcar path (horses *charioteer*))))))
+;;; WORDS ARE FLOWING OUT LIKE ENDLESS RAIN INTO UH PAY-PER-
 
 ;;; ROGER WILCO FOXTROT GOLF HOTEL JULIET KILO MIKE NOVEMBER
 ;;; QUEBEC UNIFORM WinRar!!!!!!!!!!!!!!!!!!!!!!!! X-RAY ZULU

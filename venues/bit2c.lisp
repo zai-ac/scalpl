@@ -114,10 +114,11 @@
            `(,ret
              ,(aprog1
                   (case status
-                    (200 (cond ((search "maintenance" (puri:uri-host uri))
-                                "[unexpected?] maintenance") ; Complain!!
-                               ((search "Incapsula" error) ; Complain...?
-                                (sleep (random (sqrt 97))) "Incapsula")))
+                    ((200 503)
+                     (cond ((search "maintenance" (puri:uri-host uri))
+                            "[unexpected?] maintenance") ; Complain!!
+                           ((search "Incapsula" error) ; Complain...?
+                            (sleep (random (sqrt 97))) "Incapsula")))
                     ((nil 404) (concatenate 'string method
                                             " [ \\equiv 404 ]"))
                     (409 (warn "Rate limited at ~A"
@@ -218,12 +219,15 @@ the good folks at your local Gambler's Anonymous.")
          (next-maker "nextfeeMaker") (next-taker "nextfeeTaker")
          (users-fee "usersFee") (volume "totalbalance"))
         (gate-request gate '(:GET "Funds/GetUsersFees") ())
-      (format t "~&~A~%You've traded ~2$ NIS within the window:~%~
+      (cond
+        ((and volume (null users-fee))
+         (format t "~&~A~%You've traded ~2$ NIS across 30 days;~%~
                  Current fees: ~$% taker [and ~$% maker]~%~
                  Next Tier: ~$% taker [and ~$% maker]~%~
                  Mystery 'Users Fee': ~A~%(NOW) > ,it = ~A~% //\\"
-              it volume current-taker current-maker
-              next-taker next-maker users-fee (now)))))
+                 it volume current-taker current-maker
+                 next-taker next-maker users-fee (now)))
+        (*features* (pprint "Please visit the venue's website."))))))
 ;;; consider arguing (format nil "~/signum/" EV), professionally ;)
 
 ;;; compare the volume returned by the above endpoint against these...
