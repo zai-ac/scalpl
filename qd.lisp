@@ -79,8 +79,8 @@
             (destructuring-bind (bid . ask) (recv (slot-reduce fee output))
               (loop with rudder = (phase cut) with scale = (abs rudder)
                     for i from 0 for j = (1+ (floor (* i (- 1 (/ scale pi)))))
-                    for a = (if (plusp rudder) i j)
-                    for b = (if (plusp rudder) j i)
+                    for a = (if (plusp rudder) j i)
+                    for b = (if (plusp rudder) i j)
                     ;; do (break)
                     until (let ((offer-a (nth a (car unstunk)))
                                 (offer-b (nth b (cdr unstunk))))
@@ -227,7 +227,8 @@
                  (sort (subseq* (sort (or (subseq offers 0 (1- processed-tally))
                                           (warn "DEPTH; charge?") offers)
                                       #'> :key (lambda (x) (volume (cdr x))))
-                                0 count) #'< :key (lambda (x) (price (cdr x)))))
+                                0 count)
+                       #'< :key (lambda (x) (price (cdr x)))))
                (offer-scaler (total bonus count)
                  (let ((scale (/ funds (+ total (* bonus count)))))
                    (lambda (order &aux (vol (* scale (+ bonus (car order)))))
@@ -240,7 +241,10 @@
                                  (alet (if (slot-boundp market 'tick)
                                            (* tick (expt 10 decimals))
                                            1)
-                                   (- price it)))))))))
+                                   (- price
+                                      (* (if (> (expt magic magic) max-orders)
+                                             (1+ (random magic)) 1)
+                                         it))))))))))
           (let* ((target-count (min (floor (/ funds epsilon 4/3)) ; ygni! wut?
                                     max-orders processed-tally))
                  (chosen-stairs         ; the (shares . foreign-offer)s to fight
@@ -328,7 +332,7 @@
   (with-slots (input output filter prioritizer epsilon frequency) ope
     (destructuring-bind (primary counter resilience ratio) (recv input)
       (with-slots (cut) filter
-        (setf cut (complex (- (realpart cut)) ; now your stanx wafted
+        (setf cut (complex (realpart cut) ; now your stanx wafted
                            (/ (realpart cut)  ; denumerodud propagate
                               (- (/ pi 2) (atan (log ratio)))))))
       (with-slots (next-bids next-asks response) prioritizer

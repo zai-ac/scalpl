@@ -48,7 +48,7 @@
 (defun bit2c-request (path &rest args)
   (multiple-value-bind (body status headers uri)
       (apply #'http-request (concatenate 'string *base-url* path) args)
-    (sleep (random (exp 1/2)))          ; WHY HIT RATE LIMIT, FOOL !?
+    (sleep (random (exp 1)))          ; WHY HIT RATE LIMIT, FOOL !?
     (let ((json (ignore-errors (decode-json body)))
           (raw (if (stringp body) body
                    (flexi-streams:octets-to-string
@@ -57,7 +57,8 @@
         (200 (values json 200 raw headers uri))
         ;; the rate limit should never get hit!
         ;; however, it is also undocumented... too much work?
-        ((409) (sleep (random pi)) (values () status raw headers uri))
+        ((409) (sleep (random (+ pi pi)))
+         (values () status raw headers uri))
         ;; why special-case these, here?
         ((404 500 502 504) (values () status raw headers uri))
         ;; TODO: how to best print hebrew without unicode fonts?
@@ -106,7 +107,7 @@
 
 (defmethod gate-post ((gate (eql *bit2c*)) key secret request)
   (destructuring-bind ((verb method) . parameters) request
-    (prog () (sleep (exp -1))
+    (prog () (sleep (exp 1))            ; ``signum quod runlevel'' dafuq?!?
      :loop (sleep (random (sqrt 13)))
        (multiple-value-bind (ret status error headers uri)
            (auth-request verb method key secret parameters)
@@ -114,10 +115,11 @@
            `(,ret
              ,(aprog1
                   (case status
-                    (200 (cond ((search "maintenance" (puri:uri-host uri))
-                                "[unexpected?] maintenance") ; Complain!!
-                               ((search "Incapsula" error) ; Complain...?
-                                (sleep (random (sqrt 97))) "Incapsula")))
+                    ((200 503)
+                     (cond ((search "maintenance" (puri:uri-host uri))
+                            "[unexpected?] maintenance") ; Complain!!
+                           ((search "Incapsula" error) ; Complain...?
+                            (sleep (random (sqrt 97))) "Incapsula")))
                     ((nil 404) (concatenate 'string method
                                             " [ \\equiv 404 ]"))
                     (409 (warn "Rate limited at ~A"
@@ -218,12 +220,15 @@ the good folks at your local Gambler's Anonymous.")
          (next-maker "nextfeeMaker") (next-taker "nextfeeTaker")
          (users-fee "usersFee") (volume "totalbalance"))
         (gate-request gate '(:GET "Funds/GetUsersFees") ())
-      (format t "~&~A~%You've traded ~2$ NIS within the window:~%~
+      (cond
+        ((and volume (null users-fee))
+         (format t "~&~A~%You've traded ~2$ NIS across 30 days;~%~
                  Current fees: ~$% taker [and ~$% maker]~%~
                  Next Tier: ~$% taker [and ~$% maker]~%~
                  Mystery 'Users Fee': ~A~%(NOW) > ,it = ~A~% //\\"
-              it volume current-taker current-maker
-              next-taker next-maker users-fee (now)))))
+                 it volume current-taker current-maker
+                 next-taker next-maker users-fee (now)))
+        (*features* (pprint "Please visit the venue's website."))))))
 ;;; consider arguing (format nil "~/signum/" EV), professionally ;)
 
 ;;; compare the volume returned by the above endpoint against these...
@@ -367,7 +372,8 @@ the good folks at your local Gambler's Anonymous.")
                   (change-class offer 'offered
                                 :oid (prin1-to-string it)))
                  ((eql 0) ;; (cerror "Proceed" "Break-point one")
-                  (warn "~A Balance guard possibly failed..." (now)))))
+                  (warn "~&~A~%Balance guard failed [ ~A ]"
+                        (now) (given offer)))))
               ((string= complaint "Incapsula") (sleep 37))
               (t (cerror "Proceed" "Break-point two")
                  (warn "~A ~S" (now)

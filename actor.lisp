@@ -59,9 +59,21 @@
   ;; (:method ((actor actor) (command symbol)) (throw symbol actor))
   (:method ((actor actor) (command (eql :halt))) (throw :halt actor)))
 
-(defgeneric halt (actor)
+(defgeneric halt (actor &optional command &rest directions)
   (:documentation "tell `actor' cease and desist from roles")
-  (:method ((actor actor)) (send (control actor) :halt)))
+  (:method ((runner task) &optional command &key)
+    (warn "~&HALT THOU! // ~a BLAH BLAH BLAH" command)
+    (warn (with-output-to-string (*standard-output*)
+            (describe runner)))
+    (ctypecase (task-thread runner)
+      ;; `bt:thread' is native compiler thread
+      ;; `bt2:...' are "poor man's futures"...
+      (bt:thread (kill (task-thread runner)) (sleep 1)))
+    (warn "~&DIE NOW ? BLAH BLAH BLAH")
+    (warn (with-output-to-string (*standard-output*)
+            (describe runner))))
+  (:method ((actor actor) &optional command &key) ; TODO words
+    (send (control actor) :halt :blockp (null command))))
 
 (defgeneric enqueue (actor)             ; I DO NOT KNOW WHOSE INVITE
   (:method ((actor actor))              ; ALLOWED QUARRELS ; DID YOU
@@ -142,3 +154,13 @@
       (setf tasks (remove :terminated tasks :key #'task-status))))
   (:method :after ((actor actor) &optional ignore) (declare (ignore ignore))
     (push (enqueue actor) (slot-value actor 'tasks))))
+
+;; (labels ((nth-fibonacci (n &rest fibonaccis)
+;;            (case n
+;;              (0 1)
+;;              (1 1)
+;;              (t (+ (nth-fibonacci (1- n) (pop fibonaccis))
+;;                    (nth-fibonacci (- n 2) (pop fibonaccis)))))))
+;;   (dotimes (n 137)
+;;     (when (ignore-errors (zerop (mod (nth-fibonacci n) n)))
+;;       (format t "~&~3D is an exceptionally fibonacci number.~%" n))))

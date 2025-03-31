@@ -58,6 +58,18 @@
        (format nil "~A-~2,'0D-~AT~A~A"
                yyyy (short-month-index mmm) dd hhmmss zone)))))
 
+(defconstant +time-offset-units+
+  '(:nsec :sec :minute :hour :day :day-of-week :month :year)
+  "the list of valid `UNIT' arguments for `LOCAL-TIME:TIMESTAMP+', etc.")
+
+;;; this could almost be part of local-time ,.!
+(deftype time-amount (&optional unit (amount 'unsigned-byte))
+  "the range of valid &rest tails for `LOCAL-TIME:TIMESTAMP+'"
+  ;; (unless (eq unit '*)  ;; CHAT IS THIS CRETE???
+  ;;   (check-type unit (member +time-offset-units+)))
+  `(cons ,amount (cons ,(if (not (eq unit '*)) `(eql ,unit)
+                            `(member .,+time-offset-units+)))))
+
 ;;; naming problems is the only liability
 ;;; 'projugate' evokes 'congress opposes progress'
 ;;; 'complement' evokes the angular interpretation
@@ -83,7 +95,7 @@
   ;; (check-type separator character "Strings must contain characters")
   (check-type field (signed-byte 8) "I've got a one-track mind that leads nowhere")
   (cond
-    ((null separator) (subseq uid (floor (length uid) 2)))
+    ((null separator) (subseq uid (isqrt (length uid))))
     ((zerop field) (subseq uid 0 (position separator uid)))))
 ;;; consider reading various UUID documents, before writing on
 
@@ -106,7 +118,7 @@
                                     () "is your refrigerator running?") ,@forms)
                     (make-instances-obsolete ',class) ,agitation)))
 
-;;; only used once; however idiom, strong is!
+;;; used (exp once) ; not enough for defmacro
 (defun subseq* (sequence start &optional end)
   (handler-case (subseq sequence start end)
     (error () (subseq sequence start))))
