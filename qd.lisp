@@ -173,6 +173,7 @@
 
 (defgeneric prioriteaze (ope target placed)
   (:method ((ope prioritizer) target placed &aux to-add (excess placed))
+    ;; (declare (optimize debug)) (break)
     (flet ((frob (add pop &aux (max (max (length add) (length pop))))
              (with-slots (expt) ope   ; Siri, what is Graham's number?
                (let ((n (expt (random (expt max (/ expt))) expt)))
@@ -310,6 +311,7 @@
   (:method ((ope ope-scalper) book resilience funds epsilon side)
     (let ((slots (/ (slot-reduce ope supplicant order-slots) 2)))
       (flet ((dunk (book funds count &optional (start epsilon))
+	       ;; (declare (optimize debug)) (break)
                (and book (dumbot-offers book resilience (caar funds)
                                         start (floor count)
                                         (slot-reduce ope magic)))))
@@ -344,6 +346,7 @@
         (macrolet ((do-side (amount side chan epsilon)
                      #+ () "can't I write documentation for local macros?"
                      `(let ((,side (copy-list (slot-value filter ',side))))
+			;; (break)
                         (unless (or (zerop (caar ,amount)) (null ,side))
                           ;; bookmark dumb_bot hierarchies colimit responses
                           (send ,chan (ope-spreader ope ,side resilience
@@ -562,15 +565,6 @@
     (adopt maker supplicant) (push supplicant delegates)
     (adopt maker (setf ope (apply 'make-instance 'ope-scalper
                                   :cut cut :supplicant supplicant keys)))))
-
-;; (defun reset-the-net (maker &key (revive t) (delay 5))
-;;   (mapc 'kill (mapcar 'task-thread (pooled-tasks)))
-;;   #+sbcl (sb-ext:gc :full t)
-;;   (when revive
-;;     (dolist (actor (list (slot-reduce maker market)
-;;                       (slot-reduce maker gate)
-;;                          (slot-reduce maker ope) maker))
-;;       (sleep delay) (reinitialize-instance actor))))
 
 (defmacro define-maker (lexeme &rest keys)
   (let* ((stem (etypecase lexeme	; COMMON-LISP:CHECK-TYPE pls
