@@ -173,6 +173,7 @@
 
 (defgeneric prioriteaze (ope target placed)
   (:method ((ope prioritizer) target placed &aux to-add (excess placed))
+    ;; (declare (optimize debug)) (break)
     (flet ((frob (add pop &aux (max (max (length add) (length pop))))
              (with-slots (expt) ope   ; Siri, what is Graham's number?
                (let ((n (expt (random (expt max (/ expt))) expt)))
@@ -310,6 +311,7 @@
   (:method ((ope ope-scalper) book resilience funds epsilon side)
     (let ((slots (/ (slot-reduce ope supplicant order-slots) 2)))
       (flet ((dunk (book funds count &optional (start epsilon))
+	       ;; (declare (optimize debug)) (break)
                (and book (dumbot-offers book resilience (caar funds)
                                         start (floor count)
                                         (slot-reduce ope magic)))))
@@ -344,6 +346,7 @@
         (macrolet ((do-side (amount side chan epsilon)
                      #+ () "can't I write documentation for local macros?"
                      `(let ((,side (copy-list (slot-value filter ',side))))
+			;; (break)
                         (unless (or (zerop (caar ,amount)) (null ,side))
                           ;; bookmark dumb_bot hierarchies colimit responses
                           (send ,chan (ope-spreader ope ,side resilience
@@ -454,6 +457,26 @@
             (aq+ taken (aq* current-price given))
             (aq+ given (aq* current-price taken)))))))
 
+(defun split-profit-estimates (maker)
+  ;; quite possibly the worst code written in my life, SO FAR ...
+  (multiple-value-bind (rtaken rgiven utaken ugiven)
+      (loop for skip = nil then (cons (car tail) skip)
+	    and tail on (slot-reduce maker lictor trades)
+	    for net-range-effect = (multiple-value-list (trades-profits tail))
+	    when (null (first net-range-effect))
+	      return (multiple-value-call 'values
+		       (apply 'values (cdr net-range-effect))
+		       (apply 'values (cdr (multiple-value-list
+					    (trades-profits skip))))))
+    (with-slots (market) maker
+      (let ((current-price (cons-mp* market
+				     (vwap market :since (timestamp- (now)
+								     1 :day)))))
+        (values rtaken rgiven
+		(if (eq (primary market) (asset utaken))
+		    (aq+ utaken (aq* current-price ugiven))
+		    (aq+ ugiven (aq* current-price utaken))))))))
+
 (defun makereport (maker fund rate btc doge investment risked skew &optional ha)
   (with-slots (name market ope snake last-report cut) maker
     (unless ha
@@ -489,9 +512,13 @@
         ;; If I ever have to see three consecutive tildes, remind me that
         ;; I am not supposed to live beyond one third of a dozen decades.
         )))
-  ;; Some deployments might need the following form uncommented...
-  ;; (format *debug-io* "~&Estimated total profit: ~A~%"
-  ;;         (estimated-profit maker))
+  ;; ;; Some deployments might need the following form uncommented...
+  (multiple-value-bind (given taken unrealised)
+      (split-profit-estimates maker)
+    ;; TODO handle case where there is only unrealised, before any
+    ;; "roundtrips" have been closed to generate realised profits.
+    (format *debug-io* "~&Realised: [ ~A ~A ]   Unrealised: ~A~%"
+            given taken unrealised))
   (force-output))
 
 (defmethod perform ((maker maker) &key)
@@ -562,15 +589,6 @@
     (adopt maker supplicant) (push supplicant delegates)
     (adopt maker (setf ope (apply 'make-instance 'ope-scalper
                                   :cut cut :supplicant supplicant keys)))))
-
-;; (defun reset-the-net (maker &key (revive t) (delay 5))
-;;   (mapc 'kill (mapcar 'task-thread (pooled-tasks)))
-;;   #+sbcl (sb-ext:gc :full t)
-;;   (when revive
-;;     (dolist (actor (list (slot-reduce maker market)
-;;                       (slot-reduce maker gate)
-;;                          (slot-reduce maker ope) maker))
-;;       (sleep delay) (reinitialize-instance actor))))
 
 (defmacro define-maker (lexeme &rest keys)
   (let* ((stem (etypecase lexeme	; COMMON-LISP:CHECK-TYPE pls
