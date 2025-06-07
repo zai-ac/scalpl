@@ -1,7 +1,7 @@
 (defpackage #:scalpl.navel
   (:use #:cl #:anaphora #:local-time #:chanl #:scalpl.actor
         #:scalpl.util #:scalpl.exchange #:scalpl.qd)
-  (:export #:windowed-report #:yank
+  (:export #:trades-profits #:windowed-report #:yank
            #:charioteer #:*charioteer*
            #:*slack-url* #:*slack-pnl-url*
            #:axes #:markets #:horses #:net-worth #:net-activity))
@@ -34,6 +34,24 @@
     (handler-case (describe-account it (exchange market) stream)
       (simple-error () (continue)))))
 
+;;; more lifts from quick dirty scrip scribbles
+
+; lint much ? such hint ; kill self
+(flet ((side-trades (side trades)
+         (remove side trades :test-not #'string-equal :key #'direction))
+       (side-sum (side-trades asset)
+         (aif side-trades (mapreduce asset #'aq+ side-trades) 0)))
+  (defun trades-profits (trades &optional garbage &rest refused
+                         &key &allow-other-keys) ; by popular demand
+    (let ((buys (side-trades "buy" trades))
+          (sells (side-trades "sell" trades)))
+      (let ((aq1 (aq- (side-sum buys  #'taken) (side-sum sells #'given)))
+            (aq2 (aq- (side-sum sells #'taken) (side-sum buys  #'given))))
+        (ecase (- (signum (quantity aq1)) (signum (quantity aq2)))
+          ((0 1 -1) (values nil aq1 aq2))
+          (-2 (values (aq/ (projugate aq1) aq2) aq2 aq1))
+          (+2 (values (aq/ (projugate aq2) aq1) aq1 aq2)))))))
+
 (defun maker-volumes (&optional maker rfc3339-datestring) ;_; ;_; ;_; !
   ;; Cloudflare makes me want to slit my wrists wide open ;_; ;_; ;_; !
   (flet ((think (&optional (arm #'timestamp<) ; CODE DEAD ;_; ;_; ;_; !
@@ -52,7 +70,7 @@
       (flet ((funds (symbol)		; prepare to explain any name
                (asset-funds symbol (slot-reduce treasurer balances)))
              (total (btc doge)		; especially if works people!
-               (+ btc (/ doge (vwap #1# :depth 50 :type :buy))))
+               (+ btc (/ doge (vwap #1#)))) ; ewap ?
              (vwap (side) (vwap lictor :type side :market #1# :depth depth)))
         (awhen (slot-reduce lictor trades)
           (let ((updays (/ (timestamp-difference
